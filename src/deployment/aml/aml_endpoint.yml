@@ -1,0 +1,3 @@
+name: ray-serve-on-aml-endpoint
+compute: azureml:ray-serve-on-aml
+auth_mode: key

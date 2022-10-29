@@ -1,19 +1,49 @@
 # ray-serve-on-aml
 
-# SETUP
+# Synopsis
+
+This solution accelerator enables low latency scoring for many models scenarios on Azure Machine Learning (AML). This solution leverages Ray Serve deployed in Azure Kubernetes Service (AKS).
+
+The solution intent to scale from 100s to 10,000s of models assuming a hot cache of most frequently accessed models in the AKS cluster, and dynamic eviction/reloading of models.
+
+A few key features:
+- low latency when hot cache hit
+- automatic evition based on cache optimization (hit based statistics)
+- ability to update models on the fly at runtime when new model versions need to go live
+
+# Architecture Basics
+
+An AML Online Endpoint establishes the integration between AML and Ray Serve. A Ray Serve service deployed in KubeRay handles multiple deployments and dynamic loading of models to meet the endpoint demand.
+
+# Repo Structure
+
+```
+models/				# test models to dry run the solution
+src/
+	deployment/
+		aml/		# AML CLIv2 endoint configuration
+		ray/		# Ray service configuration
+	scoring/
+		aml/		# AML Scoring code and configuration
+		ray/		# Ray Scoring code and configuration
+tests/				# test data and notebooks
+```
+
+# Setup
 
 ## Setup AKS Cluster
-1) Create an AKS cluster in AML / Compute / Inference Clusters
-2) Register your cluster in kubectrl:
+1) Create an AKS cluster in AML from the Portal using the Compute / Inference Clusters section. Select all defaults and proceed with the node type and cluster size desired.
+
+2) Once created, register your cluster in kubectrl (we assume here you are running Ubuntu or WSL Ubuntu on Windows):
 ```
 az aks get-credentials -n aldelarml0d866443c86 -g synapse
 ```
 
 ## Setup KubeRay
 
-1) Check the [latest stable version of KubeRay](https://github.com/ray-project/kuberay#use-yaml)
+1) Check this section to grab the tag of the [latest stable version of KubeRay](https://github.com/ray-project/kuberay#use-yaml)
 
-2) Set version variable
+2) Set latest stable version variable (at moment of documentation, this was v0.3.0, replace as stable needed with the current latest version)
 
 ```
 export KUBERAY_VERSION=v0.3.0
