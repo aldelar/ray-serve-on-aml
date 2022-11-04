@@ -1,0 +1,115 @@
+#!/bin/bash
+
+echo "This script will help you to create Azure Resources for RayServer on AML."
+echo "For your information following Azure resources will be create in a Resource Group:"
+echo ""
+echo "* Azure Resource Group"
+echo "* Azure Machine Learning Service"
+echo "    Blob Storage Account"
+echo "    Azure Key Vault"
+echo "    Azure Container Registry"
+echo "    Application Insight"
+echo "* Azure Kubernetes Service"
+echo ""
+
+read -p "0. Please hit Enter to run the script >>"
+
+# Select Azure subscription
+az account list --output table
+
+echo ""
+
+read -p "1/2\nTYPE your subscription Name for this workshop case-sensitive>>" subName
+
+if [ ! -z "$subName" ]; then
+    echo "You select " $subName " for the workshop."
+    az account set --subscription "$subName" --verbose
+    subscriptionID=$(az account show --query id -o tsv)
+    echo $subscriptionID
+else
+    echo "Please run the script again!! EXIT"
+    exit
+fi
+
+chkName=$(az account list --output tsv --query "[?isDefault].name")
+
+if [ "$subName" = "$chkName" ]; then
+    echo "Subscripion Name has confirmed"
+else 
+    echo "Please try again with correct subscription name"
+    exit
+fi
+
+echo ""
+
+az account list-locations --output table --query []['name','displayName']
+echo ""
+echo "2/2\nType location for the lab"
+read -p "Location >>" loc
+
+# set azure region
+if [ ! -z "$loc" ]; then
+    echo "You set location" $loc " for the lab."
+else
+    echo "Default location is West US 2"
+    loc=westus2
+fi
+
+echo ""
+echo ""
+echo "Check Resource Providers"
+echo "Checking AML"
+regState=$(az provider show --namespace Microsoft.MachineLearning --query registrationState --output tsv)
+if [ "$regState" = "Registered" ]; then
+    echo "MachineLearning is registered"
+else 
+    echo "AML is not registered"
+    exit
+fi
+echo ""
+echo "Checking AKS"
+regState=$(az provider show --namespace Microsoft.Kubernetes --query registrationState --output tsv)
+if [ "$regState" = "Registered" ]; then
+    echo "Kubernetes is registered"
+else 
+    echo "AKS is not registered"
+    exit
+fi
+echo ""
+
+# if you have exsiting one please use the one
+num=$(shuf -i0-1000 -n1)
+rgName=rayserveonaml-$num-rg 
+amlName=rayserveaml-$num
+aksName=rayserveaks-$num
+
+echo ""
+echo "Creating Resource Group $rgName"
+# Create Resource Group
+az group create -n $rgName -l $loc --tags 'owner=workshop' 'environment=workshop' 'deleteme=afterworkshop'
+
+echo ""
+echo "Creating Azure Machine Learning Service $amlName"
+# Create aml workspace
+az ml workspace create -g $rgName -n $amlName 
+
+echo ""
+echo "Installing k8s extension"
+
+az extension add --name k8s-extension
+
+echo "Creating Azure Kubernetes Service $aksName"
+
+az aks create -g $rgName -n $aksName --enable-managed-identity --node-count 2 --enable-addons monitoring -s Standard_D13_v2 --generate-ssh-keys
+
+az k8s-extension create --name $rgName --extension-type Microsoft.AzureML.Kubernetes --config enableTraining=True enableInference=True inferenceRouterServiceType=LoadBalancer allowInsecureConnections=True inferenceLoadBalancerHA=False --cluster-type managedClusters --cluster-name $aksName --resource-group $rgName --scope cluster
+
+az aks get-credentials -n $aksName -g $rgName
+
+echo ""
+echo "Attaching AKS to AML"
+
+az ml compute attach --resource-group $rgName --workspace-name $amlName --name ray-serve-aks --resource-id /subscriptions/$subscriptionID/resourcegroups/$rgName/providers/Microsoft.ContainerService/managedClusters/$aksName --type kubernetes --identity-type SystemAssigned
+
+echo ""
+echo "Script ran successfully"
