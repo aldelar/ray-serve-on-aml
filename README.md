@@ -24,8 +24,9 @@ models/				# test models to dry run the solution
 src/
 	core/
 	deployment/
-
-tests/				# test data and notebooks
+    IaC/            # Infrastructure as Code
+    tests/			# test data and notebooks
+images/             # Images for the repo
 ```
 
 # Setup
@@ -34,9 +35,11 @@ tests/				# test data and notebooks
 
 Need following tools
 
+- PC, Linux or Mac
 - Azure Subscription
 - Azure account with contributor or owner of a resource group
 - Azure Cli (or CloudShell)
+- kubectl 
 
 ## Login
 
@@ -60,7 +63,7 @@ After login to Azure you can run azcli script to provision Azure rescoures
 
 Run Azcli script
 ```bash
-./src/IaC/IaC_0_ray_serve_on_aml.azcli
+./ray-serve-on-aml/src/IaC/IaC_0_ray_serve_on_aml.azcli
 ```
 
 ### Setup AKS Cluster
@@ -92,27 +95,22 @@ export KUBERAY_VERSION=v0.3.0
 3) Install KubeRay Operator
 
 ```bash
-kubectl create -k "github.com/ray-project/kuberay/ray-operator/config/crd?ref=${KUBERAY_VERSION}"
+kubectl create -k "github.com/ray-project/kuberay/ray-operator/config/default?ref=${KUBERAY_VERSION}&timeout=90s"
 ```
 
 ```bash
-kubectl apply -k "github.com/ray-project/kuberay/manifests/base?ref=${KUBERAY_VERSION}"
-
+kubectl apply -f https://raw.githubusercontent.com/ray-project/kuberay/release-0.3/ray-operator/config/samples/ray-cluster.autoscaler.yaml
 ```
 4) Deploy many models serving application
 
 
 ```bash
-cd /src/deployment
-```
-
-```bash
-kubectl apply -f ray_service.yaml
+kubectl apply -f ./ray-serve-on-aml/src/deployment/ray_service.yaml
 ```
 check the status of the deployed application
 
 ```bash
-kubectl describe rayservice many-models-serving
+kubectl describe rayservices many-models
 ```
 
 The output should look like this
