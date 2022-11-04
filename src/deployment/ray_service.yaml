@@ -10,9 +10,9 @@ spec:
   serviceUnhealthySecondThreshold: 300 # Config for the health check threshold for service. Default value is 60.
   deploymentUnhealthySecondThreshold: 300 # Config for the health check threshold for deployments. Default value is 60.
   serveConfig:
-    importPath: ray_score_v2.deployment_graph
+    importPath: many_models_serving.deployment_graph
     runtimeEnv: |
-      working_dir: "https://github.com/james-tn/Many-Models/raw/main/code/deployment/ray_many_models/script.zip"
+      working_dir: "https://github.com/aldelar/ray-serve-on-aml/raw/main/src/core.zip"
       pip: ["azure-ai-ml"]
     deployments:
       - name: Deployment1
