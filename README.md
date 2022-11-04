@@ -1,4 +1,4 @@
-# Many Model Serving
+# Dynamic Many Models Online Serving
 
 # Synopsis
 
