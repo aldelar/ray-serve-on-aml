@@ -5,7 +5,7 @@
 apiVersion: ray.io/v1alpha1
 kind: RayService
 metadata:
-  name: ray-serve-on-aml
+  name: many-models
 spec:
   serviceUnhealthySecondThreshold: 300 # Config for the health check threshold for service. Default value is 60.
   deploymentUnhealthySecondThreshold: 300 # Config for the health check threshold for deployments. Default value is 60.
