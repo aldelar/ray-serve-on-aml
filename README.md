@@ -1,8 +1,8 @@
-# ray-serve-on-aml
+# Many Model Serving
 
 # Synopsis
 
-This solution accelerator enables low latency scoring for many models scenarios on Azure Machine Learning (AML). This solution leverages Ray Serve deployed in Azure Kubernetes Service (AKS).
+This solution accelerator enables low latency scoring for many models scenarios. This solution leverages Ray Serve deployed in Azure Kubernetes Service (AKS).
 
 The solution intent to scale from 100s to 10,000s of models assuming a hot cache of most frequently accessed models in the AKS cluster, and dynamic eviction/reloading of models.
 
@@ -20,12 +20,9 @@ An AML Online Endpoint establishes the integration between AML and Ray Serve. A 
 ```
 models/				# test models to dry run the solution
 src/
+	core/
 	deployment/
-		aml/		# AML CLIv2 endoint configuration
-		ray/		# Ray service configuration
-	scoring/
-		aml/		# AML Scoring code and configuration
-		ray/		# Ray Scoring code and configuration
+
 tests/				# test data and notebooks
 ```
 
