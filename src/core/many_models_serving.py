@@ -5,23 +5,30 @@ from ray.serve.deployment_graph import InputNode
 from typing import Dict, List
 from starlette.requests import Request
 from ray.serve.deployment_graph import ClassNode
-# from azureml.core.model import Model
-# from azureml.core import Workspace
-# from azureml.core.authentication import ServicePrincipalAuthentication
+from fastapi import FastAPI
+from pydantic import BaseModel
+from typing import List, Union, Dict
+
+app = FastAPI()
+
 import time
 # import sklearn
 # import joblib
 import os
 import threading, queue
 from collections import deque
-# from azure.ai.ml import MLClient
 import redis
 import pickle
-# from azure.identity import ManagedIdentityCredential, ClientSecretCredential
 import joblib
-REDIS_HOST= ""
-REDIS_KEY = ""
+REDIS_HOST= "azurerediscache01.redis.cache.windows.net"
+REDIS_KEY = "7nNfT8lmTxLeefzWMq2RAPLsM+KwcNpxrWqCFfSnVEM="
 
+#schema for fastapi to parse data from http request
+class InputData(BaseModel):
+    data: List[List[float]]
+    tenant:str
+class TenantMapping(BaseModel):
+    mapping:dict
 #repsenting a deployment scoring. Assumption is model name = tenant name for simpicity.
 class Deployment:
     def __init__(self):
@@ -45,41 +52,41 @@ class Deployment:
         prediction = self.model.predict(data)
 
         return {"deployment": self.__class__.__name__,"model": model_name, "prediction":prediction}
-@serve.deployment(num_replicas=1)
+@serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
 class Deployment1(Deployment):
     pass
-@serve.deployment(num_replicas=1)
+@serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
 class Deployment2(Deployment):
     pass
-@serve.deployment(num_replicas=1)
+@serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
 class Deployment3(Deployment):
     pass
-@serve.deployment(num_replicas=1)
+@serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
 class Deployment4(Deployment):
     pass
-@serve.deployment(num_replicas=1)
+@serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
 class Deployment5(Deployment):
     pass
-@serve.deployment(num_replicas=1)
+@serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
 class Deployment6(Deployment):
     pass
-@serve.deployment(num_replicas=1)
+@serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
 class Deployment7(Deployment):
     pass
-@serve.deployment(num_replicas=1)
+@serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
 class Deployment8(Deployment):
     pass
-@serve.deployment(num_replicas=1)
+@serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
 class Deployment9(Deployment):
     pass
-@serve.deployment(num_replicas=1)
+@serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
 class Deployment10(Deployment):
     pass
-@serve.deployment(num_replicas=1)
+@serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
 class Deploymentx(Deployment):
     pass
 #serve as shared memory object for tenant map and tenant queue
-@serve.deployment(num_replicas=1)
+@serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
 class SharedMemory:
     def __init__(self):
         #to do:
@@ -124,6 +131,7 @@ class SharedMemory:
     def get_dedicated_tenant_map(self):
         return self.dedicated_tenant_map
 @serve.deployment(num_replicas=2)
+@serve.ingress(app)
 class Dispatcher:
     def __init__(self, deployment1: ClassNode, deployment2: ClassNode, deployment3: ClassNode, deployment4: ClassNode, deployment5: ClassNode, deployment6: ClassNode, deployment7: ClassNode
     , deployment8: ClassNode, deployment9: ClassNode, deployment10: ClassNode, deploymentx: ClassNode,sharedmemory: ClassNode):
@@ -158,13 +166,20 @@ class Dispatcher:
                 #update mapping 
                 ray.get(self.sharedmemory.set_dynamic_tenant.remote(new_item,current_deployment_name))
 
-        
-
-    def process(self, raw_input):
+    @app.post("/update_dedicated_pool")
+    def process(self, item: TenantMapping):
+        mapping = item.mapping
+        #prepare dedicated deployment to cache the models
+        for tenant, deployment_name in mapping.items():
+            deployment= self.deployment_map.get(deployment_name)
+            deployment.reconfigure.remote({"tenant":tenant})
+            ray.get(self.sharedmemory.set_dedicated_tenant_map.remote(mapping))
+        return mapping
+    @app.post("/score")
+    def process(self, input: InputData):
         #assuming model name is same with tenant
-        tenant = raw_input.get('tenant')
-        # threading.Thread(target=self.append, daemon=True, args=(tenant)).start()
-        data = raw_input.get("data")
+        tenant = input.tenant
+        data = input.data        
         deployment_name = ray.get(self.sharedmemory.lookup_deployment_name.remote(tenant))
         deployment= self.deployment_map.get(deployment_name)
         result = ray.get(deployment.predict.remote(data, tenant))
@@ -172,24 +187,17 @@ class Dispatcher:
         self.q.put(tenant)
 
         return result
-async def json_resolver(request: Request) -> List:
-    return await request.json()
 
-
-with InputNode() as message:
-    deployment1 = Deployment1.bind()
-    deployment2 = Deployment2.bind()
-    deployment3 = Deployment3.bind()
-    deployment4 = Deployment4.bind()
-    deployment5 = Deployment5.bind()
-    deployment6 = Deployment6.bind()
-    deployment7 = Deployment7.bind()
-    deployment8 = Deployment8.bind()
-    deployment9 = Deployment9.bind()
-    deployment10 = Deployment10.bind()
-    deploymentx = Deploymentx.bind()
-    sharedmemory = SharedMemory.bind()
-    dispatcher = Dispatcher.bind(deployment1, deployment2,deployment3,deployment4, deployment5,deployment6,deployment7, deployment8,deployment9,deployment10,deploymentx,sharedmemory)
-    output_message = dispatcher.process.bind(message)
-
-deployment_graph = DAGDriver.bind(output_message, http_adapter=json_resolver)
+deployment1 = Deployment1.bind()
+deployment2 = Deployment2.bind()
+deployment3 = Deployment3.bind()
+deployment4 = Deployment4.bind()
+deployment5 = Deployment5.bind()
+deployment6 = Deployment6.bind()
+deployment7 = Deployment7.bind()
+deployment8 = Deployment8.bind()
+deployment9 = Deployment9.bind()
+deployment10 = Deployment10.bind()
+deploymentx = Deploymentx.bind()
+sharedmemory = SharedMemory.bind()
+dispatcher = Dispatcher.bind(deployment1, deployment2,deployment3,deployment4, deployment5,deployment6,deployment7, deployment8,deployment9,deployment10,deploymentx,sharedmemory)
