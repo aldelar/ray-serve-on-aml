@@ -13,7 +13,7 @@ spec:
     importPath: many_models_serving.dispatcher
     runtimeEnv: |
       working_dir: "https://github.com/aldelar/ray-serve-on-aml/raw/main/src/core.zip"
-      pip: ["azure-ai-ml"]
+      pip: ["fastapi"]
     deployments:
       - name: Deployment1
         numReplicas: 1
