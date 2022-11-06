@@ -10,7 +10,7 @@ spec:
   serviceUnhealthySecondThreshold: 300 # Config for the health check threshold for service. Default value is 60.
   deploymentUnhealthySecondThreshold: 300 # Config for the health check threshold for deployments. Default value is 60.
   serveConfig:
-    importPath: many_models_serving.dispatcher
+    importPath: many_models_serving.deployment_graph
     runtimeEnv: |
       working_dir: "https://github.com/aldelar/ray-serve-on-aml/raw/main/src/core.zip"
       pip: ["fastapi"]
