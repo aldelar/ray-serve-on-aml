@@ -87,11 +87,7 @@ spec:
         numReplicas: 2
         rayActorOptions:
           numCpus: 0.2
-      - name: DAGDriver
-        numReplicas: 2
-        routePrefix: "/"
-        rayActorOptions:
-          numCpus: 0.1
+
   rayClusterConfig:
     rayVersion: '2.0.0' # should match the Ray version in the image of the containers
     ######################headGroupSpecs#################################
