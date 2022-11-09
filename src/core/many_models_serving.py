@@ -10,10 +10,6 @@ from pydantic import BaseModel
 from typing import List, Union, Dict
 from dotenv import load_dotenv
 
-# Use dotEnv to load 
-load_dotenv()
-app = FastAPI()
-
 import time
 # import sklearn
 # import joblib
@@ -23,6 +19,12 @@ from collections import deque
 import redis
 import pickle
 import joblib
+import json
+
+# Use dotEnv to load 
+load_dotenv()
+app = FastAPI()
+
 
 # Use dotEnv to load 
 REDIS_HOST = os.environ["REDIS_HOST"]
@@ -245,11 +247,11 @@ class Dispatcher:
 
     @app.get("/get_dynamic_tenantmap")
     def get_tenantmap(self):
-        return ray.get(self.sharedmemory.get_dynamic_tenant_map.remote())
+        return json.dumps(ray.get(self.sharedmemory.get_dynamic_tenant_map.remote()))
 
-    @app.get("get_dedicated_tenantmap")
+    @app.get("/get_dedicated_tenantmap")
     def get_dedicated_tenantmap(self):
-        return ray.get(self.sharedmemory.get_dedicated_tenant_map.remote())
+        return json.dumps(ray.get(self.sharedmemory.get_dedicated_tenant_map.remote()))
 
 
 deployment1 = Deployment1.bind()
