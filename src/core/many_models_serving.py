@@ -8,7 +8,10 @@ from ray.serve.deployment_graph import ClassNode
 from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import List, Union, Dict
+from dotenv import load_dotenv
 
+# Use dotEnv to load 
+load_dotenv()
 app = FastAPI()
 
 import time
@@ -20,15 +23,24 @@ from collections import deque
 import redis
 import pickle
 import joblib
-REDIS_HOST= "azurerediscache01.redis.cache.windows.net"
-REDIS_KEY = "7nNfT8lmTxLeefzWMq2RAPLsM+KwcNpxrWqCFfSnVEM="
+
+# Use dotEnv to load 
+REDIS_HOST = os.environ["REDIS_HOST"]
+REDIS_KEY = os.environ["REDIS_KEY"] 
+
+# REDIS_HOST = "azurerediscache01.redis.cache.windows.net"
+# REDIS_KEY = "7nNfT8lmTxLeefzWMq2RAPLsM+KwcNpxrWqCFfSnVEM="
 
 #schema for fastapi to parse data from http request
 class InputData(BaseModel):
     data: List[List[float]]
     tenant:str
+
+
 class TenantMapping(BaseModel):
     mapping:dict
+
+
 #repsenting a deployment scoring. Assumption is model name = tenant name for simpicity.
 class Deployment:
     def __init__(self):
@@ -52,39 +64,63 @@ class Deployment:
         prediction = self.model.predict(data)
 
         return {"deployment": self.__class__.__name__,"model": model_name, "prediction":prediction}
+
+
 @serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
 class Deployment1(Deployment):
     pass
+
+
 @serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
 class Deployment2(Deployment):
     pass
+
+
 @serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
 class Deployment3(Deployment):
     pass
+
+
 @serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
 class Deployment4(Deployment):
     pass
+
+
 @serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
 class Deployment5(Deployment):
     pass
+
+
 @serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
 class Deployment6(Deployment):
     pass
+
+
 @serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
 class Deployment7(Deployment):
     pass
+
+
 @serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
 class Deployment8(Deployment):
     pass
+
+
 @serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
 class Deployment9(Deployment):
     pass
+
+
 @serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
 class Deployment10(Deployment):
     pass
+
+
 @serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
 class Deploymentx(Deployment):
     pass
+
+
 #serve as shared memory object for tenant map and tenant queue
 @serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
 class SharedMemory:
@@ -130,6 +166,8 @@ class SharedMemory:
         return self.dynamic_tenant_map
     def get_dedicated_tenant_map(self):
         return self.dedicated_tenant_map
+
+
 @serve.deployment(num_replicas=2)
 @serve.ingress(app)
 class Dispatcher:
@@ -200,4 +238,5 @@ deployment9 = Deployment9.bind()
 deployment10 = Deployment10.bind()
 deploymentx = Deploymentx.bind()
 sharedmemory = SharedMemory.bind()
+
 dispatcher = Dispatcher.bind(deployment1, deployment2,deployment3,deployment4, deployment5,deployment6,deployment7, deployment8,deployment9,deployment10,deploymentx,sharedmemory)
