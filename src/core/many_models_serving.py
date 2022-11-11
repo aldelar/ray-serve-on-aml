@@ -297,6 +297,7 @@ class Dispatcher:
                 #update mapping 
                 ray.get(self.sharedmemory.set_dynamic_tenant.remote(new_item,current_deployment_name))
 
+
     @app.post("/update_dedicated_pool")
     def process(self, item: TenantMapping):
         """
