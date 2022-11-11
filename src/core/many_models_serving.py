@@ -75,7 +75,7 @@ class Deployment:
         ---------
         config : Dict
         """
-        model_name = config.get("tenant","default")
+        model_name = config.get("tenant", "default")
         self.reload_model(model_name)
         self.model_name = model_name
 
@@ -157,10 +157,9 @@ class Deploymentx(Deployment):
 
 
 #serve as shared memory object for tenant map and tenant queue
-@serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
+@serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1}, route_prefix="/sharedmemory")
 class SharedMemory:
     """ Class for SharedMemory
-    Manage models - Load or unload models from memory
     Two types of model management 
         1. Dedicated - Fixed number of models will be in memory regardless of model use
         2. Dynamic - Fixed number of models will be in memory based on usage
@@ -207,6 +206,7 @@ class SharedMemory:
     def tenant_map_pop(self, item):
         return self.dynamic_tenant_map.pop(item)
 
+    @app.post("/set_dynamic_tenant")
     def set_dynamic_tenant(self, tenant, deployment_name):
         self.dynamic_tenant_map[tenant]=deployment_name
 
@@ -221,7 +221,7 @@ class SharedMemory:
 
     def lookup_dedicated_deployment_name(self, tenant):
         return self.set_dedicated_tenant_map.get(tenant, "default")
-        
+    
     def get_dynamic_tenant_map(self):
         return self.dynamic_tenant_map
 
@@ -229,12 +229,18 @@ class SharedMemory:
         return self.dedicated_tenant_map
 
 
-@serve.deployment(num_replicas=2)
+@serve.deployment(num_replicas=2, route_prefix="/dispatcher")
 @serve.ingress(app)
 class Dispatcher:
     """ Class for Dispatcher
     Route data to one of deployment (1-10) based on given tenant name
+    
+    Manage models - Load or unload models from memory
+        - Load models from Redis Cache
+        - Unload models from memory (free tentant from a deployment)
+    
     deployment_map
+    
     sharedmemory
     """
     def __init__(self, deployment1: ClassNode, deployment2: ClassNode,deployment3: ClassNode, deployment4: ClassNode,deployment5: ClassNode, deployment6: ClassNode,deployment7: ClassNode, deployment8: ClassNode,deployment9: ClassNode, deployment10: ClassNode,deploymentx: ClassNode, sharedmemory: ClassNode):
@@ -299,7 +305,7 @@ class Dispatcher:
         
         Parameters
         ----------
-        input : InputData
+        input : InputData (tenant, data)
         """
         #assuming model name is same with tenant
         tenant = input.tenant
@@ -307,7 +313,7 @@ class Dispatcher:
         deployment_name = ray.get(self.sharedmemory.lookup_deployment_name.remote(tenant))
         deployment= self.deployment_map.get(deployment_name)
         result = ray.get(deployment.predict.remote(data, tenant))
-        result["deployment_map"] = ray.get(self.sharedmemory.get_dynamic_tenant_map.remote())
+        # result["deployment_map"] = ray.get(self.sharedmemory.get_dynamic_tenant_map.remote())
         self.q.put(tenant)
         return result
 
@@ -324,6 +330,7 @@ class Dispatcher:
         Get all the dedicated tenantmap and it's model name
         """
         return json.dumps(ray.get(self.sharedmemory.get_dedicated_tenant_map.remote()))
+
 
 deployment1 = Deployment1.bind()
 deployment2 = Deployment2.bind()
