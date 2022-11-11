@@ -237,25 +237,7 @@ class Dispatcher:
     deployment_map
     sharedmemory
     """
-    # def __init__(self,
-    #             *modelDeployment: ClassNode,
-    #             deploymentx : ClassNode,
-    #             sharedmemory: ClassNode):
-    def __init__(self, deployment1: ClassNode, deployment2: ClassNode, 
-                    deployment3: ClassNode, deployment4: ClassNode,
-                    deployment5: ClassNode, deployment6: ClassNode,
-                    deployment7: ClassNode, deployment8: ClassNode,
-                    deployment9: ClassNode, deployment10: ClassNode,
-                    deploymentx: ClassNode, sharedmemory: ClassNode):
-
-
-        # numModels = 1
-        # self.deployment_map["default"] = deploymentx
-
-        # for modelDeployment_ in modelDeployment:
-        #     self.deployment_map[f"deployment{numModels}"] = modelDeployment_
-        #     numModels = numModels + 1
-
+    def __init__(self, deployment1: ClassNode, deployment2: ClassNode,deployment3: ClassNode, deployment4: ClassNode,deployment5: ClassNode, deployment6: ClassNode,deployment7: ClassNode, deployment8: ClassNode,deployment9: ClassNode, deployment10: ClassNode,deploymentx: ClassNode, sharedmemory: ClassNode):
         self.deployment_map = {
             "deployment1":deployment1,
             "deployment2":deployment2,
@@ -355,6 +337,5 @@ deployment9 = Deployment9.bind()
 deployment10 = Deployment10.bind()
 deploymentx = Deploymentx.bind()
 sharedmemory = SharedMemory.bind()
-# deployments = [deployment1, deployment2, deployment3, deployment4, deployment5, deployment6, deployment7, deployment8, deployment9, deployment10]
 
 dispatcher = Dispatcher.bind(deployment1, deployment2, deployment3, deployment4, deployment5, deployment6, deployment7, deployment8, deployment9, deployment10, deploymentx, sharedmemory)

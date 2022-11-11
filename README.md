@@ -20,12 +20,12 @@ An AML Online Endpoint establishes the integration between AML and Ray Serve. A 
 # Repo Structure
 
 ```bash
-models/				# test models to dry run the solution
+models/             # test models to dry run the solution
 src/
-	core/
-	deployment/
+    core/
+    deployment/
     IaC/            # Infrastructure as Code
-    tests/			# test data and notebooks
+    tests/          # test data and notebooks
 images/             # Images for the repo
 ```
 
