@@ -157,7 +157,7 @@ class Deploymentx(Deployment):
 
 
 #serve as shared memory object for tenant map and tenant queue
-@serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1}, route_prefix="/sharedmemory")
+@serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
 class SharedMemory:
     """ Class for SharedMemory
     Two types of model management 
@@ -206,7 +206,7 @@ class SharedMemory:
     def tenant_map_pop(self, item):
         return self.dynamic_tenant_map.pop(item)
 
-    @app.post("/set_dynamic_tenant")
+    # @app.post("/set_dynamic_tenant")
     def set_dynamic_tenant(self, tenant, deployment_name):
         self.dynamic_tenant_map[tenant]=deployment_name
 
@@ -229,7 +229,7 @@ class SharedMemory:
         return self.dedicated_tenant_map
 
 
-@serve.deployment(num_replicas=2, route_prefix="/dispatcher")
+@serve.deployment(num_replicas=2)
 @serve.ingress(app)
 class Dispatcher:
     """ Class for Dispatcher
