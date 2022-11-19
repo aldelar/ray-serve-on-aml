@@ -28,12 +28,27 @@ class Workshop:
     def __str__(self) -> str:        
         return str(self.workshop_name)
 
+@serve.deployment
+class Offsite:
+    def __init__(self, offsite_name : str = "Ray-On-laptop") -> None:
+        # super().__init__()
+        self.offsite_name = offsite_name
+
+    def get_offsite_name_name(self) -> str:
+        return str(self.offsite_name)
+
+    def set_offsite_name_name(self, new_name) -> None:
+        self.offsite_name = new_name
+
+    def __str__(self) -> str:        
+        return str(self.offsite_name)
 
 @serve.deployment
 @serve.ingress(app)
 class FastAPIDeployment:
-    def __init__(self, *workshops : RayServeDeploymentHandle) -> None:
+    def __init__(self, *workshops : RayServeDeploymentHandle, offsite : RayServeDeploymentHandle) -> None:
         self.workshops = workshops
+        self.offsite = offsite
         # self.workshopList = []
         for workshop in workshops:
             # self.workshopList.append(workshop)
@@ -43,6 +58,10 @@ class FastAPIDeployment:
     @app.get("/hello")
     def say_hello(self, name: str) -> str:
         return f"Hello {name}!"
+
+    @app.get("/get_offsite")
+    def get_offsite(self):
+        return self.offsite
 
     @app.get("/get_bind_nodes")
     def get_bind_nodes(self):
@@ -79,9 +98,10 @@ class FastAPIDeployment:
 workshop1 = Workshop.bind(workshop_name="1_wrkshp_1")
 workshop2 = Workshop.bind(workshop_name="2_wrkshp_2")
 workshop3 = Workshop.bind(workshop_name="3_wrkshp_3")
+offsite = Offsite.bind(offsite_name="offsite_workshop")
 
 
-fastapideployment = FastAPIDeployment.bind(workshop1, workshop2, workshop3)
+fastapideployment = FastAPIDeployment.bind(workshop1, workshop2, workshop3, offsite=offsite)
 
 # 2: Deploy the deployment.
 # serve.run()

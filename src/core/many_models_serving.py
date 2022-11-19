@@ -15,6 +15,7 @@ from ray.serve.deployment_graph import InputNode
 from typing import Dict, List
 from starlette.requests import Request
 from ray.serve.deployment_graph import ClassNode
+from ray.serve.handle import RayServeDeploymentHandle
 from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import List, Union, Dict
@@ -101,7 +102,7 @@ class Deployment:
             time.sleep(0.5) # adding more latency to simulate loading large model
         prediction = self.model.predict(data)
 
-        return {"deployment": self.__class__.__name__,"model": model_name, "prediction":prediction}
+        return {"deployment": self.__class__.__name__, "model": model_name, "prediction":prediction}
 
 
 @serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
@@ -244,7 +245,6 @@ class SharedMemory:
                     map.pop(item.key)
                 else:        
                     continue
-
         
     def set_dedicated_tenant_map(self, map ={"tenant9":"deployment9",
                                             "tenant10":"deployment10"}):
@@ -277,11 +277,17 @@ class SharedMemory:
     def set_dynamic_tenant(self, tenant, deployment_name):
         self.dynamic_tenant_map[tenant]=deployment_name
 
-    def lookup_deployment_name(self, tenant):
+    def lookup_deployment_name(self, tenant) -> str:
         # first look up dedicated pool, if not found then look up dynamic pool with default value.
         if tenant in self.dedicated_tenant_map:
-            return self.dedicated_tenant_map.get(tenant, "default")
-        return self.dynamic_tenant_map.get(tenant, "default")
+            print(f"{tenant} found in deciated_tenant_map")
+            return str(self.dedicated_tenant_map.get(tenant))
+        print(f"{tenant} not found deciated_tenant_map")
+
+        if tenant in self.dynamic_tenant_map:
+            print(f"{tenant} found in dynamic_teant_map")
+            return str(self.dynamic_tenant_map[tenant])
+        return None
 
     def lookup_dynamic_deployment_name(self, tenant):
         return self.dynamic_tenant_map.get(tenant, "default")
@@ -296,7 +302,7 @@ class SharedMemory:
         return self.dedicated_tenant_map
 
 
-@serve.deployment(num_replicas=2)
+@serve.deployment(num_replicas=1)
 @serve.ingress(app)
 class Dispatcher:
     """ Class for Dispatcher
@@ -310,19 +316,17 @@ class Dispatcher:
     
     sharedmemory
     """
-    def __init__(self, deployment1: ClassNode, deployment2: ClassNode,deployment3: ClassNode, deployment4: ClassNode,deployment5: ClassNode, deployment6: ClassNode,deployment7: ClassNode, deployment8: ClassNode,deployment9: ClassNode, deployment10: ClassNode,deploymentx: ClassNode, sharedmemory: ClassNode):
-        self.deployment_map = {
-            "deployment1":deployment1,
-            "deployment2":deployment2,
-            "deployment3":deployment3,
-            "deployment4":deployment4,
-            "deployment5":deployment5,
-            "deployment6":deployment6,
-            "deployment7":deployment7,
-            "deployment8":deployment8,
-            "deployment9":deployment9,
-            "deployment10":deployment10,
-            "default":deploymentx}
+    def __init__(self, *deployments: RayServeDeploymentHandle,
+                        deploymentx: RayServeDeploymentHandle,
+                        sharedmemory: RayServeDeploymentHandle):
+        # Create deployment_map with default
+        print("Dispatcher")
+        self.deployment_map = {"default":deploymentx}
+
+        i = 1
+        for dep in deployments:
+            self.deployment_map[f"deployment{i}"] = dep
+            i = i + 1
 
         self.sharedmemory = sharedmemory
 
@@ -374,7 +378,7 @@ class Dispatcher:
         return json.dumps(ray.get(self.sharedmemory.get_dynamic_tenant_map.remote()))
 
     @app.post("/score")
-    def process(self, input: InputData):
+    async def process(self, input: InputData):
         """
         Make prediction
         
@@ -385,19 +389,32 @@ class Dispatcher:
         #assuming model name is same with tenant
         tenant = input.tenant
         data = input.data        
-        deployment_name = ray.get(self.sharedmemory.lookup_deployment_name.remote(tenant))
-        deployment= self.deployment_map.get(deployment_name)
-        result = ray.get(deployment.predict.remote(data, tenant))
-        # result["deployment_map"] = ray.get(self.sharedmemory.get_dynamic_tenant_map.remote())
-        self.q.put(tenant)
+        # deployment_name = ray.get(self.sharedmemory.lookup_deployment_name.remote(tenant))
+        # deployment= self.deployment_map.get(deployment_name)
+        # result = ray.get(deployment.predict.remote(data, tenant))
+        # # result["deployment_map"] = ray.get(self.sharedmemory.get_dynamic_tenant_map.remote())
+        deployment_name: ray.ObjectRef = await self.sharedmemory.lookup_deployment_name.remote(tenant)
+        deployment_name = ray.get(deployment_name)
+        print(deployment_name)
+        deployment = self.deployment_map.get(deployment_name)
+        # in case when a tenant is not found
+        if deployment == None:
+            return f"{deployment_name} has not found"
+
+        result: ray.ObjectRef = await deployment.predict.remote(data, tenant)
+        result = ray.get(result)
+        # renew tenant lifetime
+        # self.q.put(tenant)
         return result
 
     @app.get("/get_dynamic_tenantmap")
-    def get_tenantmap(self) -> str:
+    async def get_tenantmap(self) -> str:
         """
         Get all the dynamic tenantmap and it's model name 
         """
-        return json.dumps(ray.get(self.sharedmemory.get_dynamic_tenant_map.remote()))
+        # return json.dumps(ray.get(self.sharedmemory.get_dynamic_tenant_map.remote()))
+        ref: ray.ObjectRef = await self.sharedmemory.get_dynamic_tenant_map.remote()
+        return json.dumps(await ref)
 
     @app.get("/get_dedicated_tenantmap")
     def get_dedicated_tenantmap(self) -> str:
@@ -420,4 +437,6 @@ deployment10 = Deployment10.bind()
 deploymentx = Deploymentx.bind()
 sharedmemory = SharedMemory.bind()
 
-dispatcher = Dispatcher.bind(deployment1, deployment2, deployment3, deployment4, deployment5, deployment6, deployment7, deployment8, deployment9, deployment10, deploymentx, sharedmemory)
+dispatcher = Dispatcher.bind(deployment1,deployment2, deployment3, deployment4, deployment5, deployment6, deployment7, deployment8, deployment9, deployment10,
+                            deploymentx=deploymentx,
+                            sharedmemory=sharedmemory)
