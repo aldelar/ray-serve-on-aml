@@ -47,6 +47,9 @@ class Deployment:
     def __init__(self):
         self.model_name= "default"
 
+    def __str__(self):
+        return f"{self.model_name}"
+
     def reload_model(self, model_name):
         """
         Load model from Redis Cache
@@ -103,81 +106,121 @@ class Deployment:
 
 @serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
 class Deployment1(Deployment):
+    """
+    It is empty slot for a model
+    """
     pass
 
 
 @serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
 class Deployment2(Deployment):
+    """
+    It is empty slot for a model
+    """
     pass
 
 
 @serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
 class Deployment3(Deployment):
+    """
+    It is empty slot for a model
+    """
     pass
 
 
 @serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
 class Deployment4(Deployment):
+    """
+    It is empty slot for a model
+    """
     pass
 
 
 @serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
 class Deployment5(Deployment):
+    """
+    It is empty slot for a model
+    """
     pass
 
 
 @serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
 class Deployment6(Deployment):
+    """
+    It is empty slot for a model
+    """
     pass
 
 
 @serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
 class Deployment7(Deployment):
+    """
+    It is empty slot for a model
+    """
     pass
 
 
 @serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
 class Deployment8(Deployment):
+    """
+    It is empty slot for a model
+    """
     pass
 
 
 @serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
 class Deployment9(Deployment):
+    """
+    It is empty slot for a model
+    """
     pass
 
 
 @serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
 class Deployment10(Deployment):
-    pass
+    """
+    It is empty slot for a model
+    """
+pass
 
 
 @serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
 class Deploymentx(Deployment):
+    """
+    It is empty slot for a model
+    """
     pass
 
 
-#serve as shared memory object for tenant map and tenant queue
 @serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
 class SharedMemory:
     """ Class for SharedMemory
+    Serve as shared memory object for tenant map and tenant queue
+        - tenant map: dictionary holding maps of tenant and deployment class
+        - tenant queue: prediction (work orders) request from clients 
+    It manages number of models in memory and its type    
     Two types of model management 
         1. Dedicated - Fixed number of models will be in memory regardless of model use
         2. Dynamic - Fixed number of models will be in memory based on usage
     """
-    def __init__(self):
+    def __init__(self, dynamic_queue_max_len : int = 8, dedicated_queue_max_len : int = 2):
         #to do:
         # self.dynamic_tenant_map
         # self.dedicated_tenant_map
         # The self.tenant_map becomes the combined map of all tenants to deployment. 
         # Operations to 
+        self.dedicated_queue_max_len = dedicated_queue_max_len
+        self.dynamic_queue_max_len = dynamic_queue_max_len
+
         self.dynamic_tenant_map = {}
         self.set_dynamic_tenant_map()
-        
+
         self.dedicated_tenant_map = {}
         self.set_dedicated_tenant_map()
 
-        self.dynamic_tenant_queue = deque(maxlen=8)
-        for i in range(1,9): #todo configure the max number of available dynamic deployment slots 
+        self.dynamic_tenant_queue = deque(maxlen=dynamic_queue_max_len)
+
+        for i in range(1,dynamic_queue_max_len+1): #todo configure the max number of available dynamic deployment slots 
             self.dynamic_tenant_queue.append(f"tenant{i}")
 
     def set_dynamic_tenant_map(self, map ={"tenant1":"deployment1",
@@ -188,11 +231,35 @@ class SharedMemory:
                                             "tenant6":"deployment6",
                                             "tenant7":"deployment7",
                                             "tenant8":"deployment8"}):
-        self.dynamic_tenant_map = map
 
+        if len(map) == self.dynamic_queue_max_len:
+            self.dynamic_tenant_map = map
+        else:
+            # cut off elements 
+            i = 0
+            for item in self.dynamic_tenant_map.items():
+                i = i + 1
+                if i > self.dynamic_queue_max_len:
+                    print(item)
+                    map.pop(item.key)
+                else:        
+                    continue
+
+        
     def set_dedicated_tenant_map(self, map ={"tenant9":"deployment9",
                                             "tenant10":"deployment10"}):
-        self.dedicated_tenant_map = map
+        if len(map) == self.dedicated_queue_max_len:
+            self.dedicated_tenant_map = map
+        else:
+            # cut off elements 
+            i = 0
+            for item in self.dedicated_tenant_map.items():
+                i = i + 1
+                if i > self.dedicated_queue_max_len:
+                    print(item)
+                    map.pop(item.key)
+                else:        
+                    continue
 
     def tenant_queue_remove(self, item):
         self.dynamic_tenant_queue.remove(item)
@@ -264,26 +331,26 @@ class Dispatcher:
 
     def append(self): 
         while True:
-            new_item = self.q.get()
+            item_in_queue = self.q.get()
             #if the tenant is in dedicated pool, no need to update priority queue
-            if new_item in ray.get(self.sharedmemory.get_dedicated_tenant_map.remote()):
+            if item_in_queue in ray.get(self.sharedmemory.get_dedicated_tenant_map.remote()):
                 continue
             #handle the case where tenant is in dynamic pool
-            if new_item in ray.get(self.sharedmemory.get_dynamic_tenant_map.remote()):
+            if item_in_queue in ray.get(self.sharedmemory.get_dynamic_tenant_map.remote()):
                 #the tenant is already in the queue, just move it up to top position 
-                ray.get(self.sharedmemory.tenant_queue_remove.remote(new_item))
-                ray.get(self.sharedmemory.tenant_queue_append.remote(new_item))
+                ray.get(self.sharedmemory.tenant_queue_remove.remote(item_in_queue))
+                ray.get(self.sharedmemory.tenant_queue_append.remote(item_in_queue))
             else: #if this tenant is not yet in the hot queue
                 #  kick out old tenant
                 out_item = ray.get(self.sharedmemory.tenant_queue_popleft.remote())
-                ray.get(self.sharedmemory.tenant_queue_append.remote(new_item))
+                ray.get(self.sharedmemory.tenant_queue_append.remote(item_in_queue))
                 # update mapping table to route traffic of out_item to cold scoring
                 current_deployment_name = ray.get(self.sharedmemory.tenant_map_pop.remote(out_item))
                 current_deployment = self.deployment_map.get(current_deployment_name)
-                # promote the new_item's deployment to hot
-                ray.get(current_deployment.reconfigure.remote({"tenant":new_item}))
+                # promote the item_in_queue's deployment to hot
+                ray.get(current_deployment.reconfigure.remote({"tenant":item_in_queue}))
                 #update mapping 
-                ray.get(self.sharedmemory.set_dynamic_tenant.remote(new_item,current_deployment_name))
+                ray.get(self.sharedmemory.set_dynamic_tenant.remote(item_in_queue,current_deployment_name))
 
 
     @app.post("/update_dedicated_pool")
@@ -293,10 +360,18 @@ class Dispatcher:
         mapping = item.mapping
         #prepare dedicated deployment to cache the models
         for tenant, deployment_name in mapping.items():
-            deployment= self.deployment_map.get(deployment_name)
+            deployment = self.deployment_map.get(deployment_name)
             deployment.reconfigure.remote({"tenant":tenant})
             ray.get(self.sharedmemory.set_dedicated_tenant_map.remote(mapping))
         return mapping
+
+    @app.put("/reset_dynamic_pool")
+    def reset_dynamic_pool(self):
+        """
+        Reset dynamic pool with initial configuration
+        """
+        ray.get(self.sharedmemory.set_dynamic_tenant_map.remote())
+        return json.dumps(ray.get(self.sharedmemory.get_dynamic_tenant_map.remote()))
 
     @app.post("/score")
     def process(self, input: InputData):
