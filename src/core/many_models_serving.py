@@ -20,8 +20,15 @@ from collections import deque
 import redis
 import pickle
 import joblib
-REDIS_HOST= "azurerediscache01.redis.cache.windows.net"
-REDIS_KEY = "7nNfT8lmTxLeefzWMq2RAPLsM+KwcNpxrWqCFfSnVEM="
+from dotenv import load_dotenv
+
+# Use dotEnv to load 
+load_dotenv()
+app = FastAPI()
+
+# Use dotEnv to load 
+REDIS_HOST = os.environ["REDIS_HOST"]
+REDIS_KEY = os.environ["REDIS_KEY"] 
 
 #schema for fastapi to parse data from http request
 class InputData(BaseModel):
