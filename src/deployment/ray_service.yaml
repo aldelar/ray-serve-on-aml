@@ -25,6 +25,8 @@ spec:
         numReplicas: 1
         userConfig: |
           tenant: tenant2
+        rayActorOptions:
+          numCpus: 0.2
       - name: Deployment3
         numReplicas: 1
         userConfig: |

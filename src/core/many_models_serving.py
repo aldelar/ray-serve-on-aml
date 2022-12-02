@@ -2,63 +2,63 @@ import ray
 from ray import serve
 from ray.serve.drivers import DAGDriver
 from ray.serve.deployment_graph import InputNode
-from typing import Dict, List
-from starlette.requests import Request
 from ray.serve.deployment_graph import ClassNode
-from fastapi import FastAPI
+
+from typing import Dict, List, Union
+from starlette.requests import Request
 from pydantic import BaseModel
-from typing import List, Union, Dict
-
-app = FastAPI()
-
-import time
-# import sklearn
-# import joblib
-import os
-import threading, queue
 from collections import deque
-import redis
-import pickle
-import joblib
-from dotenv import load_dotenv
 
-# Use dotEnv to load 
-load_dotenv()
+import time, os, threading, queue
+import redis
+
+# create FastAPI app
+from fastapi import FastAPI
 app = FastAPI()
 
-# Use dotEnv to load 
+# Use dotEnv to load config
+from dotenv import load_dotenv
+load_dotenv()
 REDIS_HOST = os.environ["REDIS_HOST"]
 REDIS_KEY = os.environ["REDIS_KEY"] 
 
-#schema for fastapi to parse data from http request
+# Schema for FastAPI to parse data from http request
 class InputData(BaseModel):
     data: List[List[float]]
     tenant:str
 class TenantMapping(BaseModel):
     mapping:dict
-#repsenting a deployment scoring. Assumption is model name = tenant name for simpicity.
+
+# custom model handler for the implementation, used by the Deployment
+from . import model_handler
+# Deployment: assumption is model name = tenant name for simplicity
 class Deployment:
+
     def __init__(self):
         self.model_name= "default"
+    
     def reload_model(self, model_name):
         redis_host = REDIS_HOST
         redis_key = REDIS_KEY
-        r= redis.StrictRedis(host=redis_host, port=6380,
-                                    password=redis_key, ssl=True)
-        self.model = pickle.loads(r.get("iris_model"))
+        r = redis.StrictRedis(host=redis_host, port=6380, password=redis_key, ssl=True)
+        # delegation to model_handler
+        self.model = model_handler.load(r.get("iris_model"))
 
     def reconfigure(self, config: Dict):
         model_name = config.get("tenant","default")
         self.reload_model(model_name)
         self.model_name = model_name
-    def predict(self, data,model_name):
-        #if model name is equal to deploy's configured model name, the model is already loaded
+    
+    def predict(self, data, model_name):
+        # if model name is equal to deployed configured model name, the model is already loaded
         if model_name != self.model_name:
             self.reload_model(model_name)
             time.sleep(0.5) # adding more latency to simulate loading large model
-        prediction = self.model.predict(data)
+        # delegation to model_handler
+        prediction = model_handler.predict(data)
+        return {"deployment": self.__class__.__name__, "model": model_name, "prediction": prediction}
 
-        return {"deployment": self.__class__.__name__,"model": model_name, "prediction":prediction}
+# Definitions of all Deployments to serve models
 @serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
 class Deployment1(Deployment):
     pass
@@ -92,7 +92,8 @@ class Deployment10(Deployment):
 @serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
 class Deploymentx(Deployment):
     pass
-#serve as shared memory object for tenant map and tenant queue
+
+# Deployment for SharedMemory service (tenant map and tenant queue)
 @serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
 class SharedMemory:
     def __init__(self):
@@ -137,6 +138,8 @@ class SharedMemory:
         return self.dynamic_tenant_map
     def get_dedicated_tenant_map(self):
         return self.dedicated_tenant_map
+
+# Deployment for Dispatcher service
 @serve.deployment(num_replicas=2)
 @serve.ingress(app)
 class Dispatcher:
@@ -153,16 +156,16 @@ class Dispatcher:
 
         while True:
             new_item = self.q.get()
-            #if the tenant is in dedicated pool, no need to update priority queue
+            # if the tenant is in dedicated pool, no need to update priority queue
             if new_item in ray.get(self.sharedmemory.get_dedicated_tenant_map.remote()):
                 continue
-            #handle the case where tenant is in dynamic pool
+            # handle the case where tenant is in dynamic pool
             if new_item in ray.get(self.sharedmemory.get_dynamic_tenant_map.remote()):
-                #the tenant is already in the queue, just move it up to top position 
+                # the tenant is already in the queue, just move it up to top position 
                 ray.get(self.sharedmemory.tenant_queue_remove.remote(new_item))
                 ray.get(self.sharedmemory.tenant_queue_append.remote(new_item))
-            else: #if this tenant is not yet in the hot queue
-                #  kick out old tenant
+            else: # if this tenant is not yet in the hot queue
+                # kick out old tenant
                 out_item = ray.get(self.sharedmemory.tenant_queue_popleft.remote())
                 ray.get(self.sharedmemory.tenant_queue_append.remote(new_item))
                 # update mapping table to route traffic of out_item to cold scoring
@@ -170,21 +173,22 @@ class Dispatcher:
                 current_deployment = self.deployment_map.get(current_deployment_name)
                 # promote the new_item's deployment to hot
                 ray.get(current_deployment.reconfigure.remote({"tenant":new_item}))
-                #update mapping 
+                # update mapping 
                 ray.get(self.sharedmemory.set_dynamic_tenant.remote(new_item,current_deployment_name))
 
     @app.post("/update_dedicated_pool")
     def process(self, item: TenantMapping):
         mapping = item.mapping
-        #prepare dedicated deployment to cache the models
+        # prepare dedicated deployment to cache the models
         for tenant, deployment_name in mapping.items():
             deployment= self.deployment_map.get(deployment_name)
             deployment.reconfigure.remote({"tenant":tenant})
             ray.get(self.sharedmemory.set_dedicated_tenant_map.remote(mapping))
         return mapping
+    
     @app.post("/score")
     def process(self, input: InputData):
-        #assuming model name is same with tenant
+        # assuming model name = tenant name
         tenant = input.tenant
         data = input.data        
         deployment_name = ray.get(self.sharedmemory.lookup_deployment_name.remote(tenant))
@@ -192,9 +196,9 @@ class Dispatcher:
         result = ray.get(deployment.predict.remote(data, tenant))
         result["deployment_map"] = ray.get(self.sharedmemory.get_dynamic_tenant_map.remote())
         self.q.put(tenant)
-
         return result
 
+# instantiate model deployments
 deployment1 = Deployment1.bind()
 deployment2 = Deployment2.bind()
 deployment3 = Deployment3.bind()
@@ -206,5 +210,7 @@ deployment8 = Deployment8.bind()
 deployment9 = Deployment9.bind()
 deployment10 = Deployment10.bind()
 deploymentx = Deploymentx.bind()
+# instantiate shared memory service
 sharedmemory = SharedMemory.bind()
-dispatcher = Dispatcher.bind(deployment1, deployment2,deployment3,deployment4, deployment5,deployment6,deployment7, deployment8,deployment9,deployment10,deploymentx,sharedmemory)
+# instantiate Dispatcher service and bind to all other services
+dispatcher = Dispatcher.bind(deployment1,deployment2,deployment3,deployment4,deployment5,deployment6,deployment7,deployment8,deployment9,deployment10,deploymentx,sharedmemory)
