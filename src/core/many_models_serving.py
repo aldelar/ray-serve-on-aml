@@ -30,7 +30,7 @@ class TenantMapping(BaseModel):
     mapping:dict
 
 # custom model handler for the implementation, used by the Deployment
-from . import model_handler
+import model_handler
 # Deployment: assumption is model name = tenant name for simplicity
 class Deployment:
 
@@ -55,7 +55,7 @@ class Deployment:
             self.reload_model(model_name)
             time.sleep(0.5) # adding more latency to simulate loading large model
         # delegation to model_handler
-        prediction = model_handler.predict(self.model,data)
+        prediction = model_handler.predict(data)
         return {"deployment": self.__class__.__name__, "model": model_name, "prediction": prediction}
 
 # Definitions of all Deployments to serve models
