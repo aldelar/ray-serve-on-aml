@@ -42,7 +42,7 @@ class Deployment:
         redis_key = REDIS_KEY
         r = redis.StrictRedis(host=redis_host, port=6380, password=redis_key, ssl=True)
         # delegation to model_handler
-        self.model = model_handler.load(r.get("iris_model"))
+        self.model = model_handler.load_model(r.get("iris_model"))
 
     def reconfigure(self, config: Dict):
         model_name = config.get("tenant","default")
