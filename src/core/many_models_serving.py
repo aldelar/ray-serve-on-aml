@@ -55,7 +55,7 @@ class Deployment:
             self.reload_model(model_name)
             time.sleep(0.5) # adding more latency to simulate loading large model
         # delegation to model_handler
-        prediction = model_handler.predict(data)
+        prediction = model_handler.predict(self.model,data)
         return {"deployment": self.__class__.__name__, "model": model_name, "prediction": prediction}
 
 # Definitions of all Deployments to serve models
