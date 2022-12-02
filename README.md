@@ -68,19 +68,19 @@ Run Azcli script
 
 ### Setup AKS Cluster
 
-    Following code will be executed in the `IaC_0_ray_serve_on_aml.azcli` script
+Execute `src/IaC/IaC_0_ray_serve_on_aml.azcli` to create your Azure resources. Here are some key elements of this script:
 
-    > 1) Create an AKS cluster 
+1) Creation of an AKS cluster 
 
-        ```bash
-        az aks create -n rayserve001 -g ml --node-count 2  -s standard_dc16s_v3 --enable-managed-identity --generate-ssh-keys
-        ```
+```bash
+az aks create -n rayserve001 -g ml --node-count 2  -s standard_dc16s_v3 --enable-managed-identity --generate-ssh-keys
+```
 
-    > 2) Once created, register your cluster in kubectrl (we assume here you are running Ubuntu or WSL Ubuntu on Windows):
+2) Registration of your cluster in kubectrl (we assume here you are running Ubuntu or WSL Ubuntu on Windows):
 
-        ```bash
-        az aks get-credentials -n rayserve001 -g ml
-        ```
+```bash
+az aks get-credentials -n rayserve001 -g ml
+```
 
 ## Setup KubeRay for Ray Serve
 
@@ -180,7 +180,7 @@ The output should look like this
 kubectl expose service many-models-serve-svc --type=LoadBalancer --name many-models-loadbalancer
 ```
 
-Get the public IP
+Get the public IP aka 'LoadBalancer Ingress':
 ```bash
 kubectl describe services many-models-loadbalancer
 ```
