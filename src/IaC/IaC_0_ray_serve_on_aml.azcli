@@ -10,16 +10,17 @@ echo "    Azure Key Vault"
 echo "    Azure Container Registry"
 echo "    Application Insight"
 echo "* Azure Kubernetes Service"
+echo "* Azure Redis Cache"
 echo ""
 
-read -p "0. Please hit Enter to run the script >>"
+read -p "[****] Please hit Enter to run the script >>"
 
 # Select Azure subscription
 az account list --output table
 
 echo ""
 
-read -p "1/2\nTYPE your subscription Name for this workshop case-sensitive>>" subName
+read -p "1/2 TYPE your subscription Name for this workshop case-sensitive>>" subName
 
 if [ ! -z "$subName" ]; then
     echo "You select " $subName " for the workshop."
@@ -44,7 +45,7 @@ echo ""
 
 az account list-locations --output table --query []['name','displayName']
 echo ""
-echo "2/2\nType location for the lab"
+echo "2/2 Type location for the lab"
 read -p "Location >>" loc
 
 # set azure region
@@ -59,7 +60,7 @@ echo ""
 echo ""
 echo "Check Resource Providers"
 echo "Checking AML"
-regState=$(az provider show --namespace Microsoft.MachineLearning --query registrationState --output tsv)
+regState=$(az provider show --namespace Microsoft.MachineLearningServices --query registrationState --output tsv)
 if [ "$regState" = "Registered" ]; then
     echo "MachineLearning is registered"
 else 
@@ -76,21 +77,33 @@ else
     exit
 fi
 echo ""
+echo ""
+echo "Checking AKS Configuration"
+regState=$(az provider show --namespace Microsoft.KubernetesConfiguration --query registrationState --output tsv)
+if [ "$regState" = "Registered" ]; then
+    echo "Kubernetes is registered"
+else 
+    echo "Microsoft.KubernetesConfiguration is not registered"
+    exit
+fi
+echo ""
 
-# if you have exsiting one please use the one
 num=$(shuf -i0-1000 -n1)
 rgName=rayserveonaml-$num-rg 
 amlName=rayserveaml-$num
 aksName=rayserveaks-$num
+redisName=rayserveredis-$num
+sku="basic"
+size="C0"
 
 echo ""
 echo "Creating Resource Group $rgName"
-# Create Resource Group
+
 az group create -n $rgName -l $loc --tags 'owner=workshop' 'environment=workshop' 'deleteme=afterworkshop'
 
 echo ""
 echo "Creating Azure Machine Learning Service $amlName"
-# Create aml workspace
+
 az ml workspace create -g $rgName -n $amlName 
 
 echo ""
@@ -110,6 +123,10 @@ echo ""
 echo "Attaching AKS to AML"
 
 az ml compute attach --resource-group $rgName --workspace-name $amlName --name ray-serve-aks --resource-id /subscriptions/$subscriptionID/resourcegroups/$rgName/providers/Microsoft.ContainerService/managedClusters/$aksName --type kubernetes --identity-type SystemAssigned
+
+echo ""
+echo "Creating $redisName"
+az redis create --name $redisName --resource-group $rgName --location $loc --sku $sku --vm-size $size
 
 echo ""
 echo "Script ran successfully"
