@@ -101,8 +101,7 @@ class SharedMemory:
         self.dynamic_tenant_queue = deque(maxlen=8)
         for i in range(1,9): #todo configure the max number of available dynamic deployment slots 
             self.dynamic_tenant_queue.append(f"tenant{i}")
-    def set_dynamic_tenant_map(self, map ={"pro_tenant3":"pro_deployment3","pro_tenant4":"pro_deployment4","pro_tenant5":"pro_deployment5"
-        ,"pro_tenant6":"pro_deployment6","pro_tenant7":"pro_deployment7"}):
+    def set_dynamic_tenant_map(self, map ={"pro_tenant3":"pro_deployment3","pro_tenant4":"pro_deployment4"}):
         self.dynamic_tenant_map = map
     def set_dedicated_tenant_map(self, map ={"ent_deployment1":"ent_deployment1","ent_deployment2":"ent_deployment2"}):
         self.dedicated_tenant_map = map
@@ -134,12 +133,9 @@ class SharedMemory:
 @serve.deployment(num_replicas=2)
 @serve.ingress(app)
 class Dispatcher:
-    def __init__(self, ent_deployment1: ClassNode, ent_deployment2: ClassNode, pro_deployment3: ClassNode, pro_deployment4: ClassNode, pro_deployment5: ClassNode, pro_deployment6: ClassNode, pro_deployment7: ClassNode
-    , deploymentx: ClassNode,sharedmemory: ClassNode):
-        self.deployment_map = {"ent_deployment1":ent_deployment1, "ent_deployment2":ent_deployment2,"pro_deployment3":pro_deployment3,
-        "pro_deployment4":pro_deployment4, "pro_deployment5":pro_deployment5,"pro_deployment6":pro_deployment6,"pro_deployment7":pro_deployment7,"default":deploymentx}
+    def __init__(self, ent_deployment1: ClassNode, ent_deployment2: ClassNode, pro_deployment3: ClassNode, pro_deployment4: ClassNode, deploymentx: ClassNode,sharedmemory: ClassNode):
+        self.deployment_map = {"ent_deployment1":ent_deployment1, "ent_deployment2":ent_deployment2,"pro_deployment3":pro_deployment3,"pro_deployment4":pro_deployment4, "default":deploymentx}
         self.sharedmemory = sharedmemory
-
         self.q = queue.Queue()
         threading.Thread(target=self.append, daemon=True).start()
 
