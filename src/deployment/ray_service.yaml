@@ -12,7 +12,7 @@ spec:
   serveConfig:
     importPath: many_models_serving.dispatcher
     runtimeEnv: |
-      working_dir: "https://github.com/aldelar/ray-serve-on-aml/raw/main/src/core.zip"
+      working_dir: "https://github.com/aldelar/ray-serve-on-aml/raw/demo-hs-1/src/core.zip"
       pip: ["fastapi","python-dotenv"]
     deployments:
       - name: Deployment1
@@ -55,24 +55,6 @@ spec:
         numReplicas: 1
         userConfig: |
           tenant: tenant7
-        rayActorOptions:
-          numCpus: 0.1
-      - name: Deployment8
-        numReplicas: 1
-        userConfig: |
-          tenant: tenant8
-        rayActorOptions:
-          numCpus: 0.1
-      - name: Deployment9
-        numReplicas: 1
-        userConfig: |
-          tenant: tenant9
-        rayActorOptions:
-          numCpus: 0.1
-      - name: Deployment10
-        numReplicas: 1
-        userConfig: |
-          tenant: tenant10
         rayActorOptions:
           numCpus: 0.1
       - name: Deploymentx

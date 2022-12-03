@@ -53,7 +53,7 @@ class Deployment:
         # if model name is equal to deployed configured model name, the model is already loaded
         if model_name != self.model_name:
             self.reload_model(model_name)
-            time.sleep(0.5) # adding more latency to simulate loading large model
+            # time.sleep(0.5) # adding more latency to simulate loading large model
         # delegation to model_handler
         prediction = model_handler.predict(self.model,data)
         return {"deployment": self.__class__.__name__, "model": model_name, "prediction": prediction}
@@ -81,15 +81,6 @@ class Deployment6(Deployment):
 class Deployment7(Deployment):
     pass
 @serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
-class Deployment8(Deployment):
-    pass
-@serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
-class Deployment9(Deployment):
-    pass
-@serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
-class Deployment10(Deployment):
-    pass
-@serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
 class Deploymentx(Deployment):
     pass
 
@@ -110,10 +101,10 @@ class SharedMemory:
         self.dynamic_tenant_queue = deque(maxlen=8)
         for i in range(1,9): #todo configure the max number of available dynamic deployment slots 
             self.dynamic_tenant_queue.append(f"tenant{i}")
-    def set_dynamic_tenant_map(self, map ={"tenant1":"deployment1", "tenant2":"deployment2","tenant3":"deployment3","tenant4":"deployment4","tenant5":"deployment5"
-        ,"tenant6":"deployment6","tenant7":"deployment7","tenant8":"deployment8"}):
+    def set_dynamic_tenant_map(self, map ={"pro_tenant3":"pro_deployment3","pro_tenant4":"pro_deployment4","pro_tenant5":"pro_deployment5"
+        ,"pro_tenant6":"pro_deployment6","pro_tenant7":"pro_deployment7"}):
         self.dynamic_tenant_map = map
-    def set_dedicated_tenant_map(self, map ={"tenant9":"deployment9","tenant10":"deployment10"}):
+    def set_dedicated_tenant_map(self, map ={"ent_deployment1":"ent_deployment1","ent_deployment2":"ent_deployment2"}):
         self.dedicated_tenant_map = map
     def tenant_queue_remove(self, item):
         self.dynamic_tenant_queue.remove(item)
@@ -143,10 +134,10 @@ class SharedMemory:
 @serve.deployment(num_replicas=2)
 @serve.ingress(app)
 class Dispatcher:
-    def __init__(self, deployment1: ClassNode, deployment2: ClassNode, deployment3: ClassNode, deployment4: ClassNode, deployment5: ClassNode, deployment6: ClassNode, deployment7: ClassNode
-    , deployment8: ClassNode, deployment9: ClassNode, deployment10: ClassNode, deploymentx: ClassNode,sharedmemory: ClassNode):
-        self.deployment_map = {"deployment1":deployment1, "deployment2":deployment2,"deployment3":deployment3,
-        "deployment4":deployment4, "deployment5":deployment5,"deployment6":deployment6,"deployment7":deployment7,"deployment8":deployment8,"deployment9":deployment9,"deployment10":deployment10, "default":deploymentx}
+    def __init__(self, ent_deployment1: ClassNode, ent_deployment2: ClassNode, pro_deployment3: ClassNode, pro_deployment4: ClassNode, pro_deployment5: ClassNode, pro_deployment6: ClassNode, pro_deployment7: ClassNode
+    , deploymentx: ClassNode,sharedmemory: ClassNode):
+        self.deployment_map = {"ent_deployment1":ent_deployment1, "ent_deployment2":ent_deployment2,"pro_deployment3":pro_deployment3,
+        "pro_deployment4":pro_deployment4, "pro_deployment5":pro_deployment5,"pro_deployment6":pro_deployment6,"pro_deployment7":pro_deployment7,"default":deploymentx}
         self.sharedmemory = sharedmemory
 
         self.q = queue.Queue()
@@ -199,18 +190,15 @@ class Dispatcher:
         return result
 
 # instantiate model deployments
-deployment1 = Deployment1.bind()
-deployment2 = Deployment2.bind()
-deployment3 = Deployment3.bind()
-deployment4 = Deployment4.bind()
-deployment5 = Deployment5.bind()
-deployment6 = Deployment6.bind()
-deployment7 = Deployment7.bind()
-deployment8 = Deployment8.bind()
-deployment9 = Deployment9.bind()
-deployment10 = Deployment10.bind()
+ent_deployment1 = Deployment1.bind()
+ent_deployment2 = Deployment2.bind()
+pro_deployment3 = Deployment3.bind()
+pro_deployment4 = Deployment4.bind()
+pro_deployment5 = Deployment5.bind()
+pro_deployment6 = Deployment6.bind()
+pro_deployment7 = Deployment7.bind()
 deploymentx = Deploymentx.bind()
 # instantiate shared memory service
 sharedmemory = SharedMemory.bind()
 # instantiate Dispatcher service and bind to all other services
-dispatcher = Dispatcher.bind(deployment1,deployment2,deployment3,deployment4,deployment5,deployment6,deployment7,deployment8,deployment9,deployment10,deploymentx,sharedmemory)
+dispatcher = Dispatcher.bind(ent_deployment1,ent_deployment2,pro_deployment3,pro_deployment4,pro_deployment5,pro_deployment6,pro_deployment7,deploymentx,sharedmemory)
