@@ -107,7 +107,7 @@ class SharedMemory:
         self.dedicated_tenant_map = {}
         self.set_dedicated_tenant_map()
 
-        self.dynamic_tenant_queue = deque(maxlen=2)
+        self.dynamic_tenant_queue = deque(maxlen=8)
         for i in range(1,9): #todo configure the max number of available dynamic deployment slots 
             self.dynamic_tenant_queue.append(f"tenant{i}")
     def set_dynamic_tenant_map(self, map ={"tenant1":"deployment1", "tenant2":"deployment2","tenant3":"deployment3","tenant4":"deployment4","tenant5":"deployment5"
