@@ -60,7 +60,7 @@ echo ""
 echo ""
 echo "Check Resource Providers"
 echo "Checking AML"
-regState=$(az provider show --namespace Microsoft.MachineLearning --query registrationState --output tsv)
+regState=$(az provider show --namespace Microsoft.MachineLearningServices --query registrationState --output tsv)
 if [ "$regState" = "Registered" ]; then
     echo "MachineLearning is registered"
 else 
@@ -77,7 +77,16 @@ else
     exit
 fi
 echo ""
-
+echo ""
+echo "Checking AKS Configuration"
+regState=$(az provider show --namespace Microsoft.KubernetesConfiguration --query registrationState --output tsv)
+if [ "$regState" = "Registered" ]; then
+    echo "Kubernetes is registered"
+else 
+    echo "Microsoft.KubernetesConfiguration is not registered"
+    exit
+fi
+echo ""
 
 num=$(shuf -i0-1000 -n1)
 rgName=rayserveonaml-$num-rg 
