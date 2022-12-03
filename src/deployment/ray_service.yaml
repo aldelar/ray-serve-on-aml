@@ -15,46 +15,28 @@ spec:
       working_dir: "https://github.com/aldelar/ray-serve-on-aml/raw/demo-hs-1/src/core.zip"
       pip: ["fastapi","python-dotenv"]
     deployments:
-      - name: Deployment1
+      - name: ent_deployment1
         numReplicas: 1
         userConfig: |
-          tenant: tenant1
+          tenant: ent_tenant1
         rayActorOptions:
           numCpus: 0.2
-      - name: Deployment2
+      - name: ent_deployment2
         numReplicas: 1
         userConfig: |
-          tenant: tenant2
+          tenant: ent_tenant2
         rayActorOptions:
           numCpus: 0.2
-      - name: Deployment3
+      - name: pro_deployment3
         numReplicas: 1
         userConfig: |
-          tenant: tenant3
+          tenant: pro_tenant3
         rayActorOptions:
           numCpus: 0.1
-      - name: Deployment4
+      - name: pro_deployment4
         numReplicas: 1
         userConfig: |
-          tenant: tenant4
-        rayActorOptions:
-          numCpus: 0.1
-      - name: Deployment5
-        numReplicas: 1
-        userConfig: |
-          tenant: tenant5
-        rayActorOptions:
-          numCpus: 0.1
-      - name: Deployment6
-        numReplicas: 1
-        userConfig: |
-          tenant: tenant6
-        rayActorOptions:
-          numCpus: 0.1
-      - name: Deployment7
-        numReplicas: 1
-        userConfig: |
-          tenant: tenant7
+          tenant: pro_tenant4
         rayActorOptions:
           numCpus: 0.1
       - name: Deploymentx

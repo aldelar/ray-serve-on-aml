@@ -60,25 +60,16 @@ class Deployment:
 
 # Definitions of all Deployments to serve models
 @serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
-class Deployment1(Deployment):
+class Ent_Deployment1(Deployment):
     pass
 @serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
-class Deployment2(Deployment):
+class Ent_Deployment2(Deployment):
     pass
 @serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
-class Deployment3(Deployment):
+class Pro_Deployment3(Deployment):
     pass
 @serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
-class Deployment4(Deployment):
-    pass
-@serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
-class Deployment5(Deployment):
-    pass
-@serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
-class Deployment6(Deployment):
-    pass
-@serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
-class Deployment7(Deployment):
+class Pro_Deployment4(Deployment):
     pass
 @serve.deployment(num_replicas=1, ray_actor_options={"num_cpus": 0.1})
 class Deploymentx(Deployment):
@@ -191,15 +182,12 @@ class Dispatcher:
         return result
 
 # instantiate model deployments
-ent_deployment1 = Deployment1.bind()
-ent_deployment2 = Deployment2.bind()
-pro_deployment3 = Deployment3.bind()
-pro_deployment4 = Deployment4.bind()
-pro_deployment5 = Deployment5.bind()
-pro_deployment6 = Deployment6.bind()
-pro_deployment7 = Deployment7.bind()
+ent_deployment1 = Ent_Deployment1.bind()
+ent_deployment2 = Ent_Deployment2.bind()
+pro_deployment3 = Pro_Deployment3.bind()
+pro_deployment4 = Pro_Deployment4.bind()
 deploymentx = Deploymentx.bind()
 # instantiate shared memory service
 sharedmemory = SharedMemory.bind()
 # instantiate Dispatcher service and bind to all other services
-dispatcher = Dispatcher.bind(ent_deployment1,ent_deployment2,pro_deployment3,pro_deployment4,pro_deployment5,pro_deployment6,pro_deployment7,deploymentx,sharedmemory)
+dispatcher = Dispatcher.bind(ent_deployment1,ent_deployment2,pro_deployment3,pro_deployment4,deploymentx,sharedmemory)
