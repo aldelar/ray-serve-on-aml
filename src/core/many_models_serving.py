@@ -30,7 +30,7 @@ class TenantMapping(BaseModel):
     mapping:dict
 
 # custom model handler for the implementation, used by the Deployment
-from . import model_handler
+import model_handler
 # Deployment: assumption is model name = tenant name for simplicity
 class Deployment:
 
