@@ -394,17 +394,17 @@ class Dispatcher:
         # result = ray.get(deployment.predict.remote(data, tenant))
         # # result["deployment_map"] = ray.get(self.sharedmemory.get_dynamic_tenant_map.remote())
         deployment_name: ray.ObjectRef = await self.sharedmemory.lookup_deployment_name.remote(tenant)
-        deployment_name = ray.get(deployment_name)
-        print(deployment_name)
+        # deployment_name = ray.get(deployment_name)
+        # print(deployment_name)
         deployment = self.deployment_map.get(deployment_name)
         # in case when a tenant is not found
         if deployment == None:
             return f"{deployment_name} has not found"
 
         result: ray.ObjectRef = await deployment.predict.remote(data, tenant)
-        result = ray.get(result)
+        # result = ray.get(result)
         # renew tenant lifetime
-        # self.q.put(tenant)
+        self.q.put(tenant)
         return result
 
     @app.get("/get_dynamic_tenantmap")
