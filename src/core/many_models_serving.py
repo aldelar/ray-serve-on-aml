@@ -47,11 +47,13 @@ class Deployment:
     """
     def __init__(self):
         self.model_name= "default"
+        self.model = None
+        self.reload_model()
 
     def __str__(self):
         return f"{self.model_name}"
 
-    def reload_model(self, model_name):
+    def reload_model(self, model_name : str = "iris_model"):
         """
         Load model from Redis Cache
 
@@ -59,7 +61,8 @@ class Deployment:
         ----------
         model_name : string
         """
-        
+        # self.model_name = model_name
+        self.model_name = "iris_model"
         redis_host = REDIS_HOST
         redis_key = REDIS_KEY
         
@@ -67,7 +70,7 @@ class Deployment:
 
         # Handle a case when model is not available in redis cache
         try: 
-            self.model = pickle.loads(r.get("iris_model"))
+            self.model = pickle.loads(r.get(self.model_name))
         except: # catch error
             pass
 
@@ -233,31 +236,31 @@ class SharedMemory:
                                             "tenant7":"deployment7",
                                             "tenant8":"deployment8"}):
 
-        if len(map) == self.dynamic_queue_max_len:
+        if len(map) <= self.dynamic_queue_max_len:
             self.dynamic_tenant_map = map
         else:
             # cut off elements 
             i = 0
-            for item in self.dynamic_tenant_map.items():
+            self.dynamic_tenant_map = map
+            for item in map.items():
                 i = i + 1
                 if i > self.dynamic_queue_max_len:
-                    print(item)
-                    map.pop(item.key)
+                    self.dynamic_tenant_map.pop(item.key)
                 else:        
                     continue
         
     def set_dedicated_tenant_map(self, map ={"tenant9":"deployment9",
                                             "tenant10":"deployment10"}):
-        if len(map) == self.dedicated_queue_max_len:
+        if len(map) <= self.dedicated_queue_max_len:
             self.dedicated_tenant_map = map
         else:
             # cut off elements 
             i = 0
-            for item in self.dedicated_tenant_map.items():
+            self.dedicated_tenant_map = map
+            for item in map.items():
                 i = i + 1
                 if i > self.dedicated_queue_max_len:
-                    print(item)
-                    map.pop(item.key)
+                    self.dedicated_tenant_map.pop(item.key)
                 else:        
                     continue
 
@@ -280,20 +283,17 @@ class SharedMemory:
     def lookup_deployment_name(self, tenant) -> str:
         # first look up dedicated pool, if not found then look up dynamic pool with default value.
         if tenant in self.dedicated_tenant_map:
-            print(f"{tenant} found in deciated_tenant_map")
-            return str(self.dedicated_tenant_map.get(tenant))
-        print(f"{tenant} not found deciated_tenant_map")
+            return self.dedicated_tenant_map.get(tenant)#, "default")
 
         if tenant in self.dynamic_tenant_map:
-            print(f"{tenant} found in dynamic_teant_map")
-            return str(self.dynamic_tenant_map[tenant])
+            return self.dynamic_tenant_map.get(tenant)#, "default")
         return None
 
-    def lookup_dynamic_deployment_name(self, tenant):
-        return self.dynamic_tenant_map.get(tenant, "default")
+    # def lookup_dynamic_deployment_name(self, tenant):
+    #     return self.dynamic_tenant_map.get(tenant)#, "default")
 
-    def lookup_dedicated_deployment_name(self, tenant):
-        return self.set_dedicated_tenant_map.get(tenant, "default")
+    # def lookup_dedicated_deployment_name(self, tenant):
+    #     return self.set_dedicated_tenant_map.get(tenant)#, "default")
     
     def get_dynamic_tenant_map(self):
         return self.dynamic_tenant_map
@@ -320,7 +320,6 @@ class Dispatcher:
                         deploymentx: RayServeDeploymentHandle,
                         sharedmemory: RayServeDeploymentHandle):
         # Create deployment_map with default
-        print("Dispatcher")
         self.deployment_map = {"default":deploymentx}
 
         i = 1
@@ -330,35 +329,35 @@ class Dispatcher:
 
         self.sharedmemory = sharedmemory
 
-        self.q = queue.Queue()
+        self.q = queue.Queue(maxsize=2)
         threading.Thread(target=self.append, daemon=True).start()
 
-    def append(self): 
+    async def append(self): 
         while True:
             item_in_queue = self.q.get()
             #if the tenant is in dedicated pool, no need to update priority queue
-            if item_in_queue in ray.get(self.sharedmemory.get_dedicated_tenant_map.remote()):
+            if item_in_queue in ray.get(await self.sharedmemory.get_dedicated_tenant_map.remote()):
                 continue
             #handle the case where tenant is in dynamic pool
-            if item_in_queue in ray.get(self.sharedmemory.get_dynamic_tenant_map.remote()):
+            if item_in_queue in ray.get(await self.sharedmemory.get_dynamic_tenant_map.remote()):
                 #the tenant is already in the queue, just move it up to top position 
-                ray.get(self.sharedmemory.tenant_queue_remove.remote(item_in_queue))
-                ray.get(self.sharedmemory.tenant_queue_append.remote(item_in_queue))
+                ray.get(await self.sharedmemory.tenant_queue_remove.remote(item_in_queue))
+                ray.get(await self.sharedmemory.tenant_queue_append.remote(item_in_queue))
             else: #if this tenant is not yet in the hot queue
                 #  kick out old tenant
-                out_item = ray.get(self.sharedmemory.tenant_queue_popleft.remote())
-                ray.get(self.sharedmemory.tenant_queue_append.remote(item_in_queue))
+                out_item = ray.get(await self.sharedmemory.tenant_queue_popleft.remote())
+                ray.get(await self.sharedmemory.tenant_queue_append.remote(item_in_queue))
                 # update mapping table to route traffic of out_item to cold scoring
-                current_deployment_name = ray.get(self.sharedmemory.tenant_map_pop.remote(out_item))
+                current_deployment_name = ray.get(await self.sharedmemory.tenant_map_pop.remote(out_item))
                 current_deployment = self.deployment_map.get(current_deployment_name)
                 # promote the item_in_queue's deployment to hot
-                ray.get(current_deployment.reconfigure.remote({"tenant":item_in_queue}))
+                ray.get(await current_deployment.reconfigure.remote({"tenant":item_in_queue}))
                 #update mapping 
-                ray.get(self.sharedmemory.set_dynamic_tenant.remote(item_in_queue,current_deployment_name))
+                ray.get(await self.sharedmemory.set_dynamic_tenant.remote(item_in_queue,current_deployment_name))
 
 
     @app.post("/update_dedicated_pool")
-    def process(self, item: TenantMapping):
+    async def process(self, item: TenantMapping):
         """
         """
         mapping = item.mapping
@@ -366,16 +365,16 @@ class Dispatcher:
         for tenant, deployment_name in mapping.items():
             deployment = self.deployment_map.get(deployment_name)
             deployment.reconfigure.remote({"tenant":tenant})
-            ray.get(self.sharedmemory.set_dedicated_tenant_map.remote(mapping))
+            ray.get(await self.sharedmemory.set_dedicated_tenant_map.remote(mapping))
         return mapping
 
     @app.put("/reset_dynamic_pool")
-    def reset_dynamic_pool(self):
+    async def reset_dynamic_pool(self):
         """
         Reset dynamic pool with initial configuration
         """
-        ray.get(self.sharedmemory.set_dynamic_tenant_map.remote())
-        return json.dumps(ray.get(self.sharedmemory.get_dynamic_tenant_map.remote()))
+        ray.get(await self.sharedmemory.set_dynamic_tenant_map.remote())
+        return json.dumps(ray.get(await self.sharedmemory.get_dynamic_tenant_map.remote()))
 
     @app.post("/score")
     async def process(self, input: InputData):
@@ -389,39 +388,42 @@ class Dispatcher:
         #assuming model name is same with tenant
         tenant = input.tenant
         data = input.data        
-        # deployment_name = ray.get(self.sharedmemory.lookup_deployment_name.remote(tenant))
-        # deployment= self.deployment_map.get(deployment_name)
-        # result = ray.get(deployment.predict.remote(data, tenant))
-        # # result["deployment_map"] = ray.get(self.sharedmemory.get_dynamic_tenant_map.remote())
-        deployment_name: ray.ObjectRef = await self.sharedmemory.lookup_deployment_name.remote(tenant)
-        # deployment_name = ray.get(deployment_name)
-        # print(deployment_name)
+        deployment_name = ray.get(await self.sharedmemory.lookup_deployment_name.remote(tenant))
+        # Get deployment (slot)
         deployment = self.deployment_map.get(deployment_name)
         # in case when a tenant is not found
         if deployment == None:
-            return f"{deployment_name} has not found"
+            return f"Can't find your tenant, {deployment_name} has not found. Maybe the tenant is not registered."
 
-        result: ray.ObjectRef = await deployment.predict.remote(data, tenant)
-        # result = ray.get(result)
+        result = ray.get(await deployment.predict.remote(data, tenant))
         # renew tenant lifetime
         self.q.put(tenant)
         return result
+
+    @app.get("/get_deploymentmap")
+    async def get_deploymentmap(self) -> str:
+        """
+        Get all the get_deploymentmap 
+        """
+        current_deploymentmap = []
+        for deployment in self.deployment_map:
+            current_deploymentmap.append(self.deployment_map[deployment].deployment_name)
+        return json.dumps(current_deploymentmap)
+
 
     @app.get("/get_dynamic_tenantmap")
     async def get_tenantmap(self) -> str:
         """
         Get all the dynamic tenantmap and it's model name 
         """
-        # return json.dumps(ray.get(self.sharedmemory.get_dynamic_tenant_map.remote()))
-        ref: ray.ObjectRef = await self.sharedmemory.get_dynamic_tenant_map.remote()
-        return json.dumps(await ref)
+        return json.dumps(ray.get(await self.sharedmemory.get_dynamic_tenant_map.remote()))
 
     @app.get("/get_dedicated_tenantmap")
-    def get_dedicated_tenantmap(self) -> str:
+    async def get_dedicated_tenantmap(self) -> str:
         """
         Get all the dedicated tenantmap and it's model name
         """
-        return json.dumps(ray.get(self.sharedmemory.get_dedicated_tenant_map.remote()))
+        return json.dumps(ray.get(await self.sharedmemory.get_dedicated_tenant_map.remote()))
 
 
 deployment1 = Deployment1.bind()
@@ -437,6 +439,7 @@ deployment10 = Deployment10.bind()
 deploymentx = Deploymentx.bind()
 sharedmemory = SharedMemory.bind()
 
-dispatcher = Dispatcher.bind(deployment1,deployment2, deployment3, deployment4, deployment5, deployment6, deployment7, deployment8, deployment9, deployment10,
-                            deploymentx=deploymentx,
-                            sharedmemory=sharedmemory)
+dispatcher = Dispatcher.bind(deployment1,deployment2, deployment3, deployment4, deployment5,
+                            deployment6, deployment7, deployment8, deployment9, deployment10,
+                            deploymentx = deploymentx,
+                            sharedmemory = sharedmemory)
