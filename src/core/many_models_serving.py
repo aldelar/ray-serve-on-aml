@@ -1,3 +1,4 @@
+import json
 import ray
 from ray import serve
 from ray.serve.drivers import DAGDriver
@@ -53,7 +54,7 @@ class Deployment:
         # if model name is equal to deployed configured model name, the model is already loaded
         if model_name != self.model_name:
             self.reload_model(model_name)
-            time.sleep(0.5) # adding more latency to simulate loading large model
+            time.sleep(2) # adding more latency to simulate loading large model
         # delegation to model_handler
         prediction = model_handler.predict(self.model,data)
         return {"deployment": self.__class__.__name__, "model": model_name, "prediction": prediction}
@@ -153,7 +154,6 @@ class Dispatcher:
         threading.Thread(target=self.append, daemon=True).start()
 
     def append(self):
-
         while True:
             new_item = self.q.get()
             # if the tenant is in dedicated pool, no need to update priority queue
@@ -194,9 +194,32 @@ class Dispatcher:
         deployment_name = ray.get(self.sharedmemory.lookup_deployment_name.remote(tenant))
         deployment= self.deployment_map.get(deployment_name)
         result = ray.get(deployment.predict.remote(data, tenant))
-        result["deployment_map"] = ray.get(self.sharedmemory.get_dynamic_tenant_map.remote())
         self.q.put(tenant)
         return result
+
+    @app.get("/get_deploymentmap")
+    def get_deploymentmap(self) -> str:
+        """
+        Get all the get_deploymentmap 
+        """
+        current_deploymentmap = []
+        for deployment in self.deployment_map:
+            current_deploymentmap.append(self.deployment_map[deployment].deployment_name)
+        return json.dumps(current_deploymentmap)
+
+    @app.get("/get_dynamic_tenantmap")
+    def get_dynamic_tenantmap(self) -> str:
+        """
+        Get all the dynamic tenantmap and it's model name 
+        """
+        return json.dumps(ray.get(self.sharedmemory.get_dynamic_tenant_map.remote()))
+
+    @app.get("/get_dedicated_tenantmap")
+    def get_dedicated_tenantmap(self) -> str:
+        """
+        Get all the dedicated tenantmap and it's model name
+        """
+        return json.dumps(ray.get(self.sharedmemory.get_dedicated_tenant_map.remote()))
 
 # instantiate model deployments
 deployment1 = Deployment1.bind()
