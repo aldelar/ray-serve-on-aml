@@ -21,12 +21,12 @@ A Ray Serve service deployed in KubeRay handles multiple deployments and dynamic
 
 ```bash
 images/             # Images for the repo
-models/				# test models to dry run the solution
+models/             # test models to dry run the solution
 src/
     core/           # ray cluster service code
     deployment/     # ray service deployment descriptor
     IaC/            # Infrastructure as Code
-    tests/			# test data and notebooks
+    tests/          # test data and notebooks
 ```
 
 # Setup
