@@ -98,6 +98,29 @@ kubectl create -k "github.com/ray-project/kuberay/ray-operator/config/default?re
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/ray-project/kuberay/release-0.3/ray-operator/config/samples/ray-cluster.autoscaler.yaml
 ```
+
+## Customize your Model Handler
+
+The model handler is the only piece of code you need to customize for this solution. Here, update your imports and implement 2 methods required by the Ray Service: load_model and predict.
+
+```python
+# customize the model_hanlder for your implementation, only 2 methods are required
+import pickle
+
+# required method: input is a serialized model
+def load_model(serialized_model):
+	# implement any custom logic to load model
+	return pickle.loads(serialized_model)
+
+# required method: input is model and data for inference
+def predict(model, data):
+	# implement any custom logic to predict
+	return model.predict(data)
+```
+
+If you modify this code, you'll need to repackage the content of 'core' as a zip file (see the definition of the ray_service.yml file which points to this zip file for deployment).
+
+
 ## Deploy the Many Models Scoring Service
 
 1) Deploy with kubectl
@@ -211,7 +234,7 @@ Session Affinity:         None
 A test notebook is located at 'src/tests/test_scoring.ipynb'. Run this notebook using a kernel based on the provided conda environment file located at 'src/tests/test_conda.yml'.
 
 Create the conda environment and activate it in your Jupyter notebook laptop/server:
-``` bash
+```bash
 conda env create -f ./src/tests/test_conda.yml
 conda activate ray-serve-on-aml-test
 ```
