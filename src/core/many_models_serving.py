@@ -215,11 +215,11 @@ class Dispatcher:
         return json.dumps(ray.get(self.sharedmemory.get_dynamic_tenant_map.remote()))
 
     @app.get("/get_dedicated_tenantmap")
-    def get_dedicated_tenantmap(self) -> str:
+    async def get_dedicated_tenantmap(self) -> str:
         """
         Get all the dedicated tenantmap and it's model name
         """
-        return json.dumps(ray.get(self.sharedmemory.get_dedicated_tenant_map.remote()))
+        return json.dumps(ray.get(await self.sharedmemory.get_dedicated_tenant_map.remote()))
 
 # instantiate model deployments
 deployment1 = Deployment1.bind()
