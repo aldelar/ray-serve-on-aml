@@ -33,55 +33,13 @@ spec:
           tenant: tenant3
         rayActorOptions:
           numCpus: 0.1
-      - name: Deployment4
-        numReplicas: 1
-        userConfig: |
-          tenant: tenant4
-        rayActorOptions:
-          numCpus: 0.1
-      - name: Deployment5
-        numReplicas: 1
-        userConfig: |
-          tenant: tenant5
-        rayActorOptions:
-          numCpus: 0.1
-      - name: Deployment6
-        numReplicas: 1
-        userConfig: |
-          tenant: tenant6
-        rayActorOptions:
-          numCpus: 0.1
-      - name: Deployment7
-        numReplicas: 1
-        userConfig: |
-          tenant: tenant7
-        rayActorOptions:
-          numCpus: 0.1
-      - name: Deployment8
-        numReplicas: 1
-        userConfig: |
-          tenant: tenant8
-        rayActorOptions:
-          numCpus: 0.1
-      - name: Deployment9
-        numReplicas: 1
-        userConfig: |
-          tenant: tenant9
-        rayActorOptions:
-          numCpus: 0.1
-      - name: Deployment10
-        numReplicas: 1
-        userConfig: |
-          tenant: tenant10
-        rayActorOptions:
-          numCpus: 0.1
       - name: Deploymentx
         numReplicas: 1
         userConfig: |
           tenant: default
         rayActorOptions:
           numCpus: 0.2
-      - name: SharedMemory
+      - name: Management
         numReplicas: 1
         rayActorOptions:
           numCpus: 0.2
