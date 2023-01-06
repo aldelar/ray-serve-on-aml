@@ -12,7 +12,7 @@ spec:
   serveConfig:
     importPath: many_models_serving.dispatcher
     runtimeEnv: |
-      working_dir: "https://github.com/aldelar/ray-serve-on-aml/raw/main/src/core.zip"
+      working_dir: https://github.com/aldelar/ray-serve-on-aml/blob/main/src/core.zip
       pip: ["fastapi","python-dotenv"]
     deployments:
       - name: Deployment1

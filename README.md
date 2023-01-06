@@ -83,20 +83,34 @@ az aks get-credentials -n rayserve001 -g ml
 
 1) Check this section to grab the tag of the [latest stable version of KubeRay](https://github.com/ray-project/kuberay#use-yaml)
 
-2) Set latest stable version variable (at moment of documentation, this was v0.3.0, replace as stable needed with the current latest version)
+2) Set latest stable version variable (at moment of documentation, this was v0.4.0, replace as stable needed with the current latest version)
 
 ```bash
-export KUBERAY_VERSION=v0.3.0
+export KUBERAY_VERSION=v0.4.0
 ```
 
 3) Install KubeRay Operator
 
+Install the latest version of KubeRay Operator:
 ```bash
-kubectl create -k "github.com/ray-project/kuberay/ray-operator/config/default?ref=${KUBERAY_VERSION}&timeout=90s"
+helm install kuberay-operator kuberay/kuberay-operator --version ${KUBERAY_VERSION}
 ```
 
+If the above fails because you already have KubeRay, consider upgrading to the latest version using this command:
 ```bash
-kubectl apply -f https://raw.githubusercontent.com/ray-project/kuberay/release-0.3/ray-operator/config/samples/ray-cluster.autoscaler.yaml
+helm upgrade kuberay-operator kuberay/kuberay-operator
+```
+
+4) Check that KubeRay Operator is properly running
+
+```bash
+kubectl get pods
+```
+
+You should see something like this after a couple of minutes:
+```bash
+NAME                                READY   STATUS    RESTARTS   AGE
+kuberay-operator-7fb4677468-g79z4   1/1     Running   0          41s
 ```
 
 ## Customize your Model Handler
