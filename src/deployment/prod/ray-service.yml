@@ -12,8 +12,8 @@ spec:
   serveConfig:
     importPath: many_models_serving.dispatcher
     runtimeEnv: |
-      working_dir: https://github.com/aldelar/ray-serve-on-aml/blob/main/src/core.zip
-      pip: ["fastapi","python-dotenv"]
+      working_dir: https://github.com/aldelar/ray-serve-on-aml/blob/main/src/deployment/prod/core.zip
+      pip: ["fastapi","joblib","pandas","pydantic","python-dotenv","redis==4.3.4","scikit-learn~=1.0.2"]
     deployments:
       - name: Deployment1
         numReplicas: 1
@@ -76,7 +76,7 @@ spec:
           labels:
             # custom labels. NOTE: do not define custom labels start with `raycluster.`, they may be used in controller.
             # Refer to https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
-            rayCluster: raycluster-sample # will be injected if missing
+            rayCluster: many-models # will be injected if missing
             rayNodeType: head # will be injected if missing, must be head or wroker
             groupName: headgroup # will be injected if missing
           # annotations for pod
@@ -85,7 +85,7 @@ spec:
         spec:
           containers:
             - name: ray-head
-              image: ws02acrrqjiouba.azurecr.io/custom-ray-serve:v1
+              image: rayproject/ray:2.2.0
               imagePullPolicy: Always
               #image: bonsaidev.azurecr.io/bonsai/lazer-0-9-0-cpu:dev
               env:
@@ -99,10 +99,10 @@ spec:
                   value: 
               resources:
                 limits:
-                  cpu: 5
+                  cpu: 8
                   memory: 20Gi
                 requests:
-                  cpu: 3
+                  cpu: 4
                   memory: 10Gi
               ports:
                 - containerPort: 6379
@@ -148,7 +148,7 @@ spec:
                 image: busybox:1.28
                 command: ['sh', '-c', "until nslookup $RAY_IP.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local; do echo waiting for myservice; sleep 2; done"]
             containers:
-              - name: machine-learning # must consist of lower case alphanumeric characters or '-', and must start and end with an alphanumeric character (e.g. 'my-name',  or '123-abc'
+              - name: many-models # must consist of lower case alphanumeric characters or '-', and must start and end with an alphanumeric character (e.g. 'my-name',  or '123-abc'
                 image: ws02acrrqjiouba.azurecr.io/custom-ray-serve:v1
                 imagePullPolicy: Always
                 # environment variables to set in the container.Optional.
@@ -161,22 +161,22 @@ spec:
                   - name: CPU_REQUEST
                     valueFrom:
                       resourceFieldRef:
-                        containerName: machine-learning
+                        containerName: many-models
                         resource: requests.cpu
                   - name: CPU_LIMITS
                     valueFrom:
                       resourceFieldRef:
-                        containerName: machine-learning
+                        containerName: many-models
                         resource: limits.cpu
                   - name: MEMORY_LIMITS
                     valueFrom:
                       resourceFieldRef:
-                        containerName: machine-learning
+                        containerName: many-models
                         resource: limits.memory
                   - name: MEMORY_REQUESTS
                     valueFrom:
                       resourceFieldRef:
-                        containerName: machine-learning
+                        containerName: many-models
                         resource: requests.memory
                   - name: MY_POD_NAME
                     valueFrom:
@@ -195,9 +195,9 @@ spec:
                       command: ["/bin/sh","-c","ray stop"]
                 resources:
                   limits:
-                    cpu: "5"
+                    cpu: "8"
                     memory: "20Gi"
                   requests:
-                    cpu: "3"
+                    cpu: "4"
                     memory: "10Gi"
 

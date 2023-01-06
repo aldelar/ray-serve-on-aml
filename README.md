@@ -24,7 +24,9 @@ images/             # Images for the repo
 models/             # test models to dry run the solution
 src/
     core/           # ray cluster service code
-    deployment/     # ray service deployment descriptor
+    deployment/
+        dev/        # configuration for development deployment
+        prod/       # configuration for production deployemnt
     IaC/            # Infrastructure as Code
     tests/          # test data and notebooks
 ```
@@ -81,19 +83,11 @@ az aks get-credentials -n rayserve001 -g ml
 
 ## Setup KubeRay for Ray Serve
 
-1) Check this section to grab the tag of the [latest stable version of KubeRay](https://github.com/ray-project/kuberay#use-yaml)
-
-2) Set latest stable version variable (at moment of documentation, this was v0.4.0, replace as stable needed with the current latest version)
-
-```bash
-export KUBERAY_VERSION=v0.4.0
-```
-
-3) Install KubeRay Operator
+3) Install KubeRay Operator with Helm
 
 Install the latest version of KubeRay Operator:
 ```bash
-helm install kuberay-operator kuberay/kuberay-operator --version ${KUBERAY_VERSION}
+helm install kuberay-operator kuberay/kuberay-operator
 ```
 
 If the above fails because you already have KubeRay, consider upgrading to the latest version using this command:
@@ -140,7 +134,7 @@ If you modify this code, you'll need to repackage the content of 'core' as a zip
 1) Deploy with kubectl
 
 ```bash
-kubectl apply -f ./ray-serve-on-aml/src/deployment/ray_service.yaml
+kubectl apply -f ./ray-serve-on-aml/src/deployment/prod/ray-service.yml
 ```
 
 2) Check the status of the deployed service
@@ -249,8 +243,8 @@ A test notebook is located at 'src/tests/test_scoring.ipynb'. Run this notebook 
 
 Create the conda environment and activate it in your Jupyter notebook laptop/server:
 ```bash
-conda env create -f ./src/tests/test_conda.yml
-conda activate ray-serve-on-aml-test
+conda env create -f ./src/deployment/dev/conda.yml
+conda activate ray-serve-on-aml
 ```
 
 Here's the content of this notebook:

@@ -1,0 +1,2 @@
+working_dir: ./
+pip: ["fastapi","joblib","pandas","pydantic","python-dotenv","redis==4.3.4","scikit-learn~=1.0.2"]
